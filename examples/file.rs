@@ -1,8 +1,11 @@
 #![deny(warnings)]
+extern crate futures;
 extern crate pretty_env_logger;
 extern crate warp;
 
-use warp::Filter;
+use std::path::PathBuf;
+
+use warp::{Filter};
 
 fn main() {
     pretty_env_logger::init();
@@ -12,7 +15,14 @@ fn main() {
         .and(warp::fs::file("./README.md"));
 
     // dir already requires GET...
-    let examples = warp::path("ex").and(warp::fs::dir("./examples/"));
+    let examples = warp::path("ex")
+        .and(warp::path::tail())
+        .and(warp::fs::conditionals())
+        .and_then(|filename: warp::path::Tail, conditionals: warp::fs::Conditionals| {
+            let filepath = PathBuf::from("./examples").join(filename.as_str());
+            println!("Serving {:?}", filepath);
+            warp::fs::send_file(filepath, conditionals)
+        });
 
     // GET / => README.md
     // GET /ex/... => ./examples/..

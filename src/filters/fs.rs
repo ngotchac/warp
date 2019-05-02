@@ -95,6 +95,42 @@ pub fn dir(path: impl Into<PathBuf>) -> impl FilterClone<Extract = One<File>, Er
         .and_then(file_reply)
 }
 
+/// Creates a `Future` that serves a File at the `path`
+///
+/// # Example
+///
+/// ```
+/// use warp::Filter;
+///
+/// // Matches requests that start with `/static`,
+/// // and then uses the rest of that path to lookup
+/// // and serve a file from `/www/static`.
+/// let route = warp::path("static")
+///     .and(warp::path::tail())
+///     .and(warp::fs::conditionals())
+///     .and_then(|path_tail: warp::path::Tail, conditionals: warp::fs::Conditionals| {
+///         let filepath = PathBuf::from("/www/static").join(path_tail.as_str());
+///         println!("Serving {:?}", filepath);
+///         warp::fs::send_file(filepath, conditionals)
+///     });
+///
+/// // For example:
+/// // - `GET /static/app.js` would serve the file `/www/static/app.js`
+/// // - `GET /static/css/app.css` would serve the file `/www/static/css/app.css`
+/// ```
+///
+/// # Note
+///
+/// This filter uses `tokio-fs` to serve files, which requires the server
+/// to be run in the threadpool runtime. This is only important to remember
+/// if starting a runtime manually.
+pub fn send_file(
+    path: impl Into<PathBuf>,
+    conditionals: Conditionals,
+) -> impl Future<Item = File, Error = Rejection> + Send {
+    file_reply(ArcPath(Arc::new(path.into())), conditionals)
+}
+
 fn path_from_tail(
     base: Arc<PathBuf>,
 ) -> impl FilterClone<Extract = One<ArcPath>, Error = Rejection> {
@@ -150,7 +186,8 @@ fn path_from_tail(
 }
 
 #[derive(Debug)]
-struct Conditionals {
+/// `Conditionals` contains optional Headers for serving a file
+pub struct Conditionals {
     if_modified_since: Option<IfModifiedSince>,
     if_unmodified_since: Option<IfUnmodifiedSince>,
     if_range: Option<IfRange>,
@@ -212,7 +249,8 @@ impl Conditionals {
     }
 }
 
-fn conditionals() -> impl Filter<Extract = One<Conditionals>, Error = Never> + Copy {
+/// Creates a filter which extracts `Conditionals`
+pub fn conditionals() -> impl Filter<Extract = One<Conditionals>, Error = Never> + Copy {
     ::header::optional2()
         .and(::header::optional2())
         .and(::header::optional2())
