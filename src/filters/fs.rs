@@ -200,6 +200,16 @@ enum Cond {
 }
 
 impl Conditionals {
+    /// Creates empty Conditionals
+    pub fn empty() -> Self {
+        Conditionals {
+            if_modified_since: None,
+            if_unmodified_since: None,
+            if_range: None,
+            range: None,
+        }
+    }
+
     fn check(self, last_modified: Option<LastModified>) -> Cond {
         if let Some(since) = self.if_unmodified_since {
             let precondition = last_modified
