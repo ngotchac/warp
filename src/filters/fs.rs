@@ -271,6 +271,15 @@ pub struct File {
     resp: Response,
 }
 
+impl File {
+    /// Append a new header to the File response
+    pub fn append_header<T>(&mut self, header: T)
+        where T: headers::Header
+    {
+        self.resp.headers_mut().typed_insert(header);
+    }
+}
+
 // Silly wrapper since Arc<PathBuf> doesn't implement AsRef<Path> ;_;
 #[derive(Clone, Debug)]
 struct ArcPath(Arc<PathBuf>);
